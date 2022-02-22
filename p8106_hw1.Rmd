@@ -1,0 +1,166 @@
+---
+title: "p8106_hw1"
+author: "hw2849"
+date: "2/21/2022"
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 8,
+  fig.height = 6,
+  out.width = "90%",
+  dpi = 300
+)
+
+library(tidyverse)
+library(ISLR)
+library(MASS)
+library(caret)
+library(glmnet)
+library(corrplot)
+library(plotmo)
+```
+
+```{r data import and processing}
+## data import
+housing_test = read_csv("./housing_test.csv") %>% 
+  janitor::clean_names()
+housing_training = read_csv("./housing_training.csv") %>% 
+  janitor::clean_names()
+
+##plot response sale price
+plot(housing_training$sale_price)
+
+## training net x and y 
+x_train = model.matrix(sale_price ~ ., housing_training)[,-1]
+y_train = housing_training$sale_price
+
+## test net x and y
+x_test = model.matrix(sale_price ~ ., housing_test)[,-1]
+y_test = housing_test$sale_price
+
+```
+
+## Least square model
+
+(a) Fit a linear model using least squares on the training data. Is there any potential
+disadvantage of this model?
+
+```{r linear model}
+set.seed(8106)
+
+## set control
+ctrl1 <- trainControl(method = "repeatedcv", number = 10, repeats = 5) # ten-fold cross-validation
+
+## lm least squares
+fit_ls = train(
+  sale_price~.,
+  data = housing_training,
+  method = "lm",
+  trControl = ctrl1) 
+
+fit_ls$results
+
+## test error
+pred_lm = predict(fit_ls$finalModel, newdata = data.frame(x_test))
+mean((pred_lm - y_test)^2)
+```
+
+* Potential disadvantage: 
+
+## Lasso 
+
+(b) Fit a lasso model on the training data and report the test error. When the 1SE rule
+is applied, how many predictors are included in the model?
+
+```{r lasso}
+## lasso
+set.seed(8106)
+fit_lasso = train(x_train, y_train, 
+                method = "glmnet",
+                tuneGrid = expand.grid(alpha = 1, lambda = exp(seq(5, -1, length = 100))),
+                trControl = ctrl1)
+
+## plot lasso with log function
+plot(fit_lasso, xTrans = log)
+
+# fit_lasso$bestTune
+
+set.seed(8106)
+# test error
+pred_lasso = predict(fit_lasso, newdata = data.frame(x_test))
+mean((pred_lasso - y_test)^2)
+
+```
+
+* test error: 441224318
+* how many predictors: 
+
+## Elastic net
+
+(c) Fit an elastic net model on the training data. Report the selected tuning parameters
+and the test error.
+
+```{r elastic net}
+set.seed(8106)
+fit_enet <- train(x_train, y_train,
+                  method = "glmnet",
+                  tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
+                                         lambda = exp(seq(2, -2, length = 50))),
+                  trControl = ctrl1)
+
+## tunning parameters
+fit_enet$bestTune
+
+# tset error
+pred_enet = predict(fit_enet, newdata = data.frame(x_test))
+mean((pred_enet - y_test)^2)
+```
+
+* tuning parameters: $\alpha = 0.05$, $\lambda = 7.389056$,
+* test error: 442020913
+
+## Partial least squares
+
+(d) Fit a partial least squares model on the training data and report the test error. How
+many components are included in your model?
+
+```{r pls}
+set.seed(8106)
+fit_pls = train( x_train, y_train,
+                 method = "pls", 
+                 tuneGrid = data.frame(ncomp = 1:19),
+                 trControl = ctrl1,
+                 preProcess = c("center", "scale"))
+
+ggplot(fit_pls, highlight = TRUE)
+
+pred_pls <- predict(fit_pls, newdata = data.frame(x_test))
+mean((pred_pls - y_test)^2)
+```
+
+* test error: 449622718
+* how many components: 
+
+## Models comparison
+
+(e) Which model will you choose for predicting the response? Why?
+
+```{r resampling}
+## comparison of models by resampling
+resamp = resamples(list(lm = fit_ls, 
+                        lasso = fit_lasso,
+                        enet = fit_enet, 
+                        pls = fit_pls))
+
+summary(resamp)
+
+bwplot(resamp, metric = "RMSE")
+```
+
+* I would choose PLS to predict the response (sale prices), because PLS model has the lowest RMSE in both median(22827.16) and mean(22942.48. 
