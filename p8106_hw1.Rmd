@@ -71,7 +71,7 @@ pred_lm = predict(fit_ls$finalModel, newdata = data.frame(x_test))
 mean((pred_lm - y_test)^2)
 ```
 
-* Potential disadvantage: 
+* Potential disadvantage: sensitive to outliers, limited to linear relationships, only looks at the mean of the dependent variables
 
 ## Lasso 
 
@@ -89,7 +89,7 @@ fit_lasso = train(x_train, y_train,
 ## plot lasso with log function
 plot(fit_lasso, xTrans = log)
 
-# fit_lasso$bestTune
+dim(fit_lasso$finalModel$beta)
 
 set.seed(8106)
 # test error
@@ -99,7 +99,7 @@ mean((pred_lasso - y_test)^2)
 ```
 
 * test error: 441224318
-* how many predictors: 
+* how many predictors: 79
 
 ## Elastic net
 
@@ -132,9 +132,11 @@ many components are included in your model?
 
 ```{r pls}
 set.seed(8106)
-fit_pls = train( x_train, y_train,
+
+dim(x_train)
+fit_pls = train(x_train, y_train,
                  method = "pls", 
-                 tuneGrid = data.frame(ncomp = 1:19),
+                 tuneGrid = data.frame(ncomp = 1:39),
                  trControl = ctrl1,
                  preProcess = c("center", "scale"))
 
@@ -145,7 +147,7 @@ mean((pred_pls - y_test)^2)
 ```
 
 * test error: 449622718
-* how many components: 
+* 39 components are included in PLS model
 
 ## Models comparison
 
@@ -163,4 +165,4 @@ summary(resamp)
 bwplot(resamp, metric = "RMSE")
 ```
 
-* I would choose PLS to predict the response (sale prices), because PLS model has the lowest RMSE in both median(22827.16) and mean(22942.48. 
+* I would choose PLS to predict the response (sale prices), because PLS model has the lowest RMSE in both median(22827.16) and mean(22942.48). 
